@@ -1,0 +1,336 @@
+VANET DATASET REBUILD / RUN COMMANDS
+Project: FINAL_VANET_1000x1000
+Purpose: Reproduce the VANET data-generation pipeline from map -> SUMO -> MOVE/mobility -> NS-2 -> QoS results -> final raw dataset.
+
+IMPORTANT
+=========
+1. These commands assume the project root is:
+   $HOME/Documents/VANET_Project/FINAL_VANET_1000x1000
+
+2. Do NOT delete or overwrite your existing verified files before making a backup.
+
+3. Some steps are visualization/check steps, while others actually generate data.
+
+4. The exact project-specific MOVE export command/script was not available in the saved project information.
+   Therefore, the MOVE conversion step is marked clearly instead of inventing a command.
+   The verified final mobility files are expected in 03_MOVE/.
+
+===============================================================================
+STEP 0 — GO TO PROJECT ROOT
+===============================================================================
+
+cd "$HOME/Documents/VANET_Project/FINAL_VANET_1000x1000"
+
+pwd
+
+ls -lah
+
+
+===============================================================================
+STEP 1 — BACK UP THE PROJECT BEFORE RE-RUNNING
+===============================================================================
+
+cd "$HOME/Documents/VANET_Project" && \
+cp -a "FINAL_VANET_1000x1000" "FINAL_VANET_1000x1000_BACKUP_$(date +%Y%m%d_%H%M%S)"
+
+cd "$HOME/Documents/VANET_Project/FINAL_VANET_1000x1000"
+
+
+===============================================================================
+STEP 2 — CHECK REQUIRED SOFTWARE
+===============================================================================
+
+sumo --version
+
+sumo-gui --version
+
+netconvert --version
+
+python3 --version
+
+ns
+
+# If NS-2 starts an interactive prompt, type:
+exit
+
+# Optional NAM check:
+nam
+
+
+===============================================================================
+STEP 3 — CHECK THE OSM MAP FILE
+===============================================================================
+
+ls -lh 01_OSM
+
+ls -lh "01_OSM/bangla_motor_1000x1000.osm"
+
+
+===============================================================================
+STEP 4 — BUILD / REBUILD THE SUMO NETWORK FROM THE OSM MAP
+===============================================================================
+
+netconvert \
+  --osm-files "01_OSM/bangla_motor_1000x1000.osm" \
+  -o "02_SUMO/bangla_motor_1000x1000.net.xml"
+
+ls -lh "02_SUMO/bangla_motor_1000x1000.net.xml"
+
+
+===============================================================================
+STEP 5 — OPEN ONLY THE SUMO ROAD NETWORK
+===============================================================================
+
+sumo-gui -n "02_SUMO/bangla_motor_1000x1000.net.xml"
+
+
+===============================================================================
+STEP 6 — CHECK SUMO CONFIGURATION AND ROUTE FILES
+===============================================================================
+
+ls -lh 02_SUMO
+
+find 02_SUMO -maxdepth 1 -type f -name "*.sumocfg" | wc -l
+
+find 02_SUMO -maxdepth 1 -type f -name "*.rou.xml" | wc -l
+
+find 02_SUMO -maxdepth 1 -type f -name "*.sumocfg" | sort
+
+find 02_SUMO -maxdepth 1 -type f -name "*.rou.xml" | sort
+
+
+===============================================================================
+STEP 7 — RUN SUMO WITH VEHICLES (GUI)
+===============================================================================
+
+# Recommended thesis visualization example: 150 vehicles, 20 km/h, seed 01
+
+sumo-gui -c "02_SUMO/FINAL_150veh_20kmh_seed01.sumocfg"
+
+# Other examples:
+
+sumo-gui -c "02_SUMO/FINAL_050veh_20kmh_seed01.sumocfg"
+
+sumo-gui -c "02_SUMO/FINAL_100veh_20kmh_seed01.sumocfg"
+
+# In SUMO-GUI press the Play/Run button to see the vehicles moving.
+
+
+===============================================================================
+STEP 8 — RUN SUMO WITHOUT GUI
+===============================================================================
+
+sumo -c "02_SUMO/FINAL_150veh_20kmh_seed01.sumocfg"
+
+
+===============================================================================
+STEP 9 — OPTIONAL: BATCH-VALIDATE ALL SUMO CONFIG FILES
+===============================================================================
+
+for cfg in 02_SUMO/*.sumocfg
+do
+    echo "RUNNING: $cfg"
+    sumo -c "$cfg" --no-step-log true --duration-log.disable true
+    if [ $? -ne 0 ]; then
+        echo "FAILED: $cfg"
+        break
+    fi
+done
+
+
+===============================================================================
+STEP 10 — MOVE / MOBILITY GENERATION
+===============================================================================
+
+# Final project output is expected in 03_MOVE as:
+# mobility_<nodes>veh_<speed>kmh_seedXX.tcl
+
+ls -lh 03_MOVE
+
+find 03_MOVE -maxdepth 1 -type f -name "mobility_*.tcl" | wc -l
+
+# Expected verified count: 60 mobility profiles
+
+find 03_MOVE -maxdepth 1 -type f -name "mobility_*.tcl" | sort
+
+
+-------------------------------------------------------------------------------
+MOVE GUI / EXPORT NOTE
+-------------------------------------------------------------------------------
+
+The project used the SUMO -> MOVE -> NS-2 mobility workflow.
+
+The exact local MOVE installation/export command was not preserved in the
+available project information, so no command is invented here.
+
+If MOVE is installed as an executable, try:
+
+move
+
+or, from the MOVE installation directory:
+
+./move
+
+Inside MOVE:
+1. Import/open the SUMO network and route/configuration.
+2. Generate/run the mobility scenario.
+3. Export mobility for NS-2.
+4. Save the output in 03_MOVE/ using the project naming pattern.
+
+After export, verify:
+
+find 03_MOVE -maxdepth 1 -type f -name "mobility_*.tcl" | wc -l
+
+
+===============================================================================
+STEP 11 — CHECK NS-2 SCRIPTS
+===============================================================================
+
+ls -lh 04_NS2
+
+ls -lh "04_NS2/run_vanet_scenario.tcl"
+
+ls -lh "04_NS2/run_final_batch.py"
+
+ls -lh "04_NS2/run_expanded_batch.py"
+
+find 04_NS2 -maxdepth 1 -type f -iname "*manifest*.csv" -o -iname "*manifest*.txt" | sort
+
+
+===============================================================================
+STEP 12 — INSPECT NS-2 SCRIPT ARGUMENTS BEFORE A MANUAL RUN
+===============================================================================
+
+head -n 120 "04_NS2/run_vanet_scenario.tcl"
+
+grep -n '\$argv\|argc' "04_NS2/run_vanet_scenario.tcl"
+
+
+===============================================================================
+STEP 13 — RUN THE ORIGINAL / BASE BATCH
+===============================================================================
+
+cd "$HOME/Documents/VANET_Project/FINAL_VANET_1000x1000"
+
+python3 "04_NS2/run_final_batch.py"
+
+
+===============================================================================
+STEP 14 — RUN THE EXPANDED FINAL BATCH
+===============================================================================
+
+cd "$HOME/Documents/VANET_Project/FINAL_VANET_1000x1000"
+
+python3 "04_NS2/run_expanded_batch.py"
+
+# Expanded design:
+# Nodes       = 50, 100, 150
+# Speed       = 20, 30, 40, 50 km/h
+# Flows       = 5, 7, 10, 12, 15, 18, 20, 22, 25
+# Packet rate = 2, 3, 4, 5, 6, 8 pps
+# Seeds       = 1, 2, 3, 4, 5
+# Protocols   = AODV, AOMDV, DSDV
+#
+# Total scenario instances = 3240
+# Total protocol runs       = 9720
+
+
+===============================================================================
+STEP 15 — CHECK GENERATED TRACE FILES
+===============================================================================
+
+ls -lh 05_TRACES
+
+find 05_TRACES -type f -name "*.tr" | wc -l
+
+find 05_TRACES -type f -name "*.nam" | wc -l
+
+find 05_TRACES -type f -printf "%T@ %p\n" | sort -nr | head -20
+
+
+===============================================================================
+STEP 16 — OPEN A NAM TRACE IF AVAILABLE
+===============================================================================
+
+find 05_TRACES -type f -name "*.nam" | head
+
+# Example:
+# nam "05_TRACES/<filename>.nam"
+
+
+===============================================================================
+STEP 17 — CHECK QoS / RESULT FILES
+===============================================================================
+
+ls -lh 06_RESULTS
+
+ls -lh "06_RESULTS/final_qos_progress.csv" 2>/dev/null || true
+
+ls -lh "06_RESULTS/expanded_new_qos_progress.csv" 2>/dev/null || true
+
+ls -lh "06_RESULTS/final_qos_expanded_9720.csv" 2>/dev/null || true
+
+
+===============================================================================
+STEP 18 — VERIFY FINAL RAW QoS DATASET
+===============================================================================
+
+python3 - <<'PY'
+import pandas as pd
+from pathlib import Path
+
+p = Path("06_RESULTS/final_qos_expanded_9720.csv")
+
+if not p.exists():
+    raise FileNotFoundError(p)
+
+df = pd.read_csv(p)
+
+print("=" * 80)
+print("FINAL RAW QoS DATASET AUDIT")
+print("=" * 80)
+print("File:", p)
+print("Shape:", df.shape)
+print("Columns:", len(df.columns))
+
+if "Protocol" in df.columns:
+    print("\nProtocol counts:")
+    print(df["Protocol"].value_counts())
+
+group_cols = [
+    "Simulation_Seed",
+    "Retry_Round",
+    "Triplet_Attempt",
+    "Nodes",
+    "Speed_kmh",
+    "Flows",
+    "Packet_Rate_pps",
+    "Mobility_Seed",
+]
+
+missing = [c for c in group_cols if c not in df.columns]
+print("\nMissing grouping columns:", missing)
+
+if not missing:
+    sizes = df.groupby(group_cols, dropna=False).size()
+    print("Unique comparison groups:", len(sizes))
+    print("Rows per group:")
+    print(sizes.value_counts().sort_index())
+
+print("\nDuplicate full rows:", df.duplicated().sum())
+print("=" * 80)
+PY
+
+# Expected verified output:
+# Shape: (9720, 36)
+# AODV  = 3240
+# AOMDV = 3240
+# DSDV  = 3240
+# Unique protocol-comparison groups = 3240
+# Rows per group = exactly 3
+
+
+
+===============================================================================
+END
+===============================================================================
