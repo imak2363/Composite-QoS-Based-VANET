@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<configuration>
+
+    <input>
+        <net-file value="bangla_motor_1000x1000.net.xml"/>
+        <route-files value="mobility_150veh_20kmh_seed01.rou.xml"/>
+    </input>
+
+    <time>
+        <begin value="0"/>
+        <end value="300"/>
+    </time>
+
+    <processing>
+        <time-to-teleport value="-1"/>
+    </processing>
+
+</configuration>
